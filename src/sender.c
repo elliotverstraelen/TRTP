@@ -2,6 +2,13 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdint.h>
+#include <ws2tcpip.h>
+
+#include <string.h>
+#include <winsock2.h>
+#pragma comment(lib, "Ws2_32.lib")
+#include <windows.h>
+#include <errno.h>
 
 #include "log.h"
 
@@ -58,5 +65,17 @@ int main(int argc, char **argv) {
     ERROR("This is not an error, %s", "now let's code!");
 
     // Now let's code!
+    int sock = socket(AF_INET6, SOCK_DGRAM, 0);
+    //REGISTER
+    struct sockaddr_in6 receiver_addr;
+    memset(&receiver_addr, 0, sizeof(struct sockaddr_in6));
+    receiver_addr.sin6_family = AF_INET6;
+    receiver_addr.sin6_port = htons(receiver_port);
+    inet_pton(AF_INET6, receiver_ip, &receiver_addr, sizeof(receiver_addr));
+
+    connect(sock, (const struct sockaddr *) &receiver_addr, sizeof(receiver_addr));
+    char message[32] = "hello world";
+    send(sock, message, 32, 0);
+
     return EXIT_SUCCESS;
 }
