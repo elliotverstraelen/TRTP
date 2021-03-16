@@ -10,7 +10,7 @@ struct __attribute__((__packed__)) pkt {
    uint16_t length : 16;
    uint32_t timestamp : 32;
    uint32_t crc1 : 32; //checksum for send
-   char *pkt_get_payload;
+   char *payload;
    uint32_t crc2 : 32;
 
 };
@@ -48,7 +48,7 @@ pkt_status_code pkt_decode(const char *data, const size_t len, pkt_t *pkt)
     memcpy(&firstByte, data, 1);
 
     /** TYPE **/
-    ptypes_t type = firstByte >> 6 //right shift
+    ptypes_t type = firstByte >> 6; //right shift
     if(type!=1 && type!=2 && type!=3){
         return E_TYPE;
     }
@@ -59,13 +59,83 @@ pkt_status_code pkt_decode(const char *data, const size_t len, pkt_t *pkt)
     /** TR **/
     uint8_t tr = firstByte & 0b00111111;
     tr = tr >> 5;
-    pkt_status_code tr_sc = pkt_set_tr(pkt, tr)
-    if()
+    pkt_status_code tr_status = pkt_set_tr(pkt, tr);
+    if(tr_status != PKT_OK){
+        return tr_status;
+    }
+    /** WINDOW **/
+
+    pkt_status_code window_status = pkt_set_window(pkt, firstByte & 0b00011111);
+    if(windows_status != PKT_OK){
+        return windows_status;
+    }
+
+    /** LENGTH **/
+    if(pkt_get_type(pkt) == PTYPE_DATA){
+        uint16_t length;
+        memcpy(&length, &data[1], 2);
+        length = htohs(length);
+        pkt_status_code length_status = pkt_set_length(pkt, length);
+        if(length_status != PKT_OK){
+            return length_status;
+        }
+    }
+
+    /** SEQNUM **/
+
+    int offset = 0; //THIS IS USED TO GET THE LOCATION OF THE BITS IN THE PACKET STRUCTURE
+
+    uint8_t seq;
+    memcpy(&seq, &data[1 + offset], 1);
+    pkt_status_code seqnum_status = pkt_set_seqnum(pkt, seq);
+    if(seqnum_status != PKT_OK){
+        return seqnum_status;
+    }
+    
+    /** TIMESTAMP **/
+    uint32_t ts;
+    memcpy(&ts, &data[2 + offset], 4);
+    pkt_status_code ts_status = pkt_set_timestamp(pkt, ts);
+    if(ts_status != PKT_OK){
+        return ts_status;
+    }
+
+    /** CRC1 **/
+    uint32_t crc1;
+    memcpy(&crc1, &data[6 + offset], 4);
+    crc1 = ntohl(crc1); //Reverse order of the bits
+    //TODO
+
+    /** PAYLOAD **/
+    int payload_length = pkt_get_length(pkt);
+    char *payload = (char *) malloc(sizeof(char)*payload_length);
+    memcpy(payload, data[10 + offset], payload_length);
+    pkt_status_code payload_status = pkt_set_payload(pkt, payload, payload_length);
+    free(payload);
+    if(payload_status != PKT_OK){
+        return payload_status;
+    }
+
+    /** CRC32 HEADER VERIF **/
+    //uint32_t crc1 = crc32()
+    //TODO
+
+    /** CRC32 PAYLOAD VERIF**/
+    uint32_t crc32;
+    memcpy(&crc32, &data[10 + offset + pkt->length], 4);
+    crc32 = htohl(crc32); //INVERSE BITS
+
+    //TODO
+
+    
+
+
 }
+return PKT_OK;
 
 pkt_status_code pkt_encode(const pkt_t* pkt, char *buf, size_t *len)
 {
-    /* Your code will be inserted here */
+    //TODO
 }
 
 ptypes_t pkt_get_type  (const pkt_t* pkt)
