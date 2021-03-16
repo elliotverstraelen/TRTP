@@ -8,6 +8,7 @@ struct __attribute__((__packed__)) pkt {
    uint8_t tr : 1;
    uint8_t window : 5;
    uint16_t length : 16;
+   uint8_t seqnum : 8;
    uint32_t timestamp : 32;
    uint32_t crc1 : 32; //checksum for send
    char *payload;
@@ -140,88 +141,105 @@ pkt_status_code pkt_encode(const pkt_t* pkt, char *buf, size_t *len)
 
 ptypes_t pkt_get_type  (const pkt_t* pkt)
 {
-    /* Your code will be inserted here */
+    pkt->type;
 }
 
 uint8_t  pkt_get_tr(const pkt_t* pkt)
 {
-    /* Your code will be inserted here */
+    return pkt->tr;
 }
 
 uint8_t  pkt_get_window(const pkt_t* pkt)
 {
-    /* Your code will be inserted here */
+    return pkt->window;
 }
 
 uint8_t  pkt_get_seqnum(const pkt_t* pkt)
 {
-    /* Your code will be inserted here */
+    pkt->seqnum;
 }
 
 uint16_t pkt_get_length(const pkt_t* pkt)
 {
-    /* Your code will be inserted here */
+    return pkt->length;
 }
 
 uint32_t pkt_get_timestamp   (const pkt_t* pkt)
 {
-    /* Your code will be inserted here */
+    return pkt->timestamp;
 }
 
 uint32_t pkt_get_crc1   (const pkt_t* pkt)
 {
-    /* Your code will be inserted here */
+    return pkt->crc1;
 }
 
 uint32_t pkt_get_crc2   (const pkt_t* pkt)
 {
-    /* Your code will be inserted here */
+    return pkt->crc2;
 }
 
 const char* pkt_get_payload(const pkt_t* pkt)
 {
-    /* Your code will be inserted here */
+    pkt->payload;
 }
 
 
 pkt_status_code pkt_set_type(pkt_t *pkt, const ptypes_t type)
 {
-    /* Your code will be inserted here */
+    if(type != PTYPE_ACK && type != PTYPE_NACK && type != PTYPE_DATA){
+        return E_TYPE;
+    }
+    pkt->type = type;
+    return PKT_OK;
 }
 
 pkt_status_code pkt_set_tr(pkt_t *pkt, const uint8_t tr)
 {
-    /* Your code will be inserted here */
+    pkt->tr = tr;
+    return PKT_OK;
 }
 
 pkt_status_code pkt_set_window(pkt_t *pkt, const uint8_t window)
 {
-    /* Your code will be inserted here */
+   if(windows > MAX_WINDOW_SIZE){
+       return E_WINDOW;
+   }
+   pkt->window = window;
+   return PKT_OK;
 }
 
 pkt_status_code pkt_set_seqnum(pkt_t *pkt, const uint8_t seqnum)
 {
-    /* Your code will be inserted here */
+    pkt->seqnum = seqnum;
+    return PKT_OK;
 }
 
 pkt_status_code pkt_set_length(pkt_t *pkt, const uint16_t length)
 {
-    /* Your code will be inserted here */
+    if (length > MAX_PAYLOAD_SIZE){
+        return E_LENGTH;
+    }
+    pkt->length = length;
+    return PKT_OK;
 }
 
 pkt_status_code pkt_set_timestamp(pkt_t *pkt, const uint32_t timestamp)
 {
-    /* Your code will be inserted here */
+    pkt->timestamp = timestamp;
+    return PKT_OK;
 }
 
 pkt_status_code pkt_set_crc1(pkt_t *pkt, const uint32_t crc1)
 {
-    /* Your code will be inserted here */
+    pkt->crc1 = crc1;
+    return PKT_OK;
 }
 
 pkt_status_code pkt_set_crc2(pkt_t *pkt, const uint32_t crc2)
 {
-    /* Your code will be inserted here */
+    pkt->crc2 = crc2;
+    return PKT_OK;
 }
 
 pkt_status_code pkt_set_payload(pkt_t *pkt,
@@ -233,5 +251,7 @@ pkt_status_code pkt_set_payload(pkt_t *pkt,
 
 ssize_t predict_header_length(const pkt_t *pkt)
 {
-    /* Your code will be inserted here */
+    if(pkt_get_length(pkt) >= 0x8000){return -1;}
+    if(pkt_get_length(pkt) > 128){return 8;}
+    else{return 7;}
 }
