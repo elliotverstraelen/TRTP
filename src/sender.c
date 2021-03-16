@@ -1,23 +1,23 @@
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <stdint.h>
-#include <ws2tcpip.h>
-
 #include <string.h>
-#include <winsock2.h>
-#pragma comment(lib, "Ws2_32.lib")
-#include <windows.h>
-#include <errno.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include "log.h"
+
+#define BUFF_LEN 
 
 int print_usage(char *prog_name) {
     ERROR("Usage:\n\t%s [-f filename] [-s stats_filename] receiver_ip receiver_port", prog_name);
     return EXIT_FAILURE;
 }
 
-
+// gcc sender.c -o sender
+// ./sender ipv6 port
 int main(int argc, char **argv) {
     int opt;
 
@@ -63,19 +63,20 @@ int main(int argc, char **argv) {
 
     DEBUG("You can only see me if %s", "you built me using `make debug`");
     ERROR("This is not an error, %s", "now let's code!");
-
     // Now let's code!
+
     int sock = socket(AF_INET6, SOCK_DGRAM, 0);
-    //REGISTER
+
+    // REGISTER 
     struct sockaddr_in6 receiver_addr;
     memset(&receiver_addr, 0, sizeof(struct sockaddr_in6));
     receiver_addr.sin6_family = AF_INET6;
     receiver_addr.sin6_port = htons(receiver_port);
-    inet_pton(AF_INET6, receiver_ip, &receiver_addr, sizeof(receiver_addr));
+    inet_pton(AF_INET6, receiver_ip, &receiver_addr.sin6_addr);
 
     connect(sock, (const struct sockaddr *) &receiver_addr, sizeof(receiver_addr));
-    char message[32] = "hello world";
-    send(sock, message, 32, 0);
-
+    char msg[32] = "hello, world!";
+    send(sock, msg, 32, 0);
+    
     return EXIT_SUCCESS;
 }
