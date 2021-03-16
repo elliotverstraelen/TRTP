@@ -1,28 +1,66 @@
 #include "packet_interface.h"
-
-/* Extra #includes */
-/* Your code will be inserted here */
+#include <string.h>
+#include <stdlib.h>
+#include <arpa/inet.h>
 
 struct __attribute__((__packed__)) pkt {
-    /* Your code will be inserted here */
-};
+   ptypes_t type : 2;
+   uint8_t tr : 1;
+   uint8_t window : 5;
+   uint16_t length : 16;
+   uint32_t timestamp : 32;
+   uint32_t crc1 : 32; //checksum for send
+   char *pkt_get_payload;
+   uint32_t crc2 : 32;
 
-/* Extra code */
-/* Your code will be inserted here */
+};
 
 pkt_t* pkt_new()
 {
-    /* Your code will be inserted here */
+    pkt_t *new = malloc(sizeof(pkt_t));
+    if(new == NULL){
+        return NULL;
+    }
+    return new;
 }
 
 void pkt_del(pkt_t *pkt)
 {
-    /* Your code will be inserted here */
+    if(pkt_get_payload(pkt)!=NULL){
+        free(pkt->payload);
+    }
+    free(pkt);
+    pkt = NULL;
+    
 }
 
 pkt_status_code pkt_decode(const char *data, const size_t len, pkt_t *pkt)
 {
-    /* Your code will be inserted here */
+    if(len==0 || len<11){
+        return E_UNCONSISTENT;
+    }
+    if(len<7){
+        return E_NOHEADER;
+    }
+
+    /** FIRST BYTES **/
+    uint8_t firstByte;
+    memcpy(&firstByte, data, 1);
+
+    /** TYPE **/
+    ptypes_t type = firstByte >> 6 //right shift
+    if(type!=1 && type!=2 && type!=3){
+        return E_TYPE;
+    }
+    else{
+        pkt_set_type(pkt, type);
+    }
+
+    /** TR **/
+    uint8_t tr = firstByte & 0b00111111;
+    tr = tr >> 5;
+    pkt_status_code tr_sc = pkt_set_tr(pkt, tr)
+    if()
 }
 
 pkt_status_code pkt_encode(const pkt_t* pkt, char *buf, size_t *len)
