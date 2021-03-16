@@ -2,7 +2,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <arpa/inet.h>
-
 struct __attribute__((__packed__)) pkt {
    ptypes_t type : 2;
    uint8_t tr : 1;
@@ -67,15 +66,15 @@ pkt_status_code pkt_decode(const char *data, const size_t len, pkt_t *pkt)
     /** WINDOW **/
 
     pkt_status_code window_status = pkt_set_window(pkt, firstByte & 0b00011111);
-    if(windows_status != PKT_OK){
-        return windows_status;
+    if(window_status != PKT_OK){
+        return window_status;
     }
 
     /** LENGTH **/
     if(pkt_get_type(pkt) == PTYPE_DATA){
         uint16_t length;
         memcpy(&length, &data[1], 2);
-        length = htohs(length);
+        length = htons(length);
         pkt_status_code length_status = pkt_set_length(pkt, length);
         if(length_status != PKT_OK){
             return length_status;
@@ -110,7 +109,7 @@ pkt_status_code pkt_decode(const char *data, const size_t len, pkt_t *pkt)
     /** PAYLOAD **/
     int payload_length = pkt_get_length(pkt);
     char *payload = (char *) malloc(sizeof(char)*payload_length);
-    memcpy(payload, data[10 + offset], payload_length);
+    memcpy(payload, &data[10 + offset], payload_length);
     pkt_status_code payload_status = pkt_set_payload(pkt, payload, payload_length);
     free(payload);
     if(payload_status != PKT_OK){
@@ -124,15 +123,15 @@ pkt_status_code pkt_decode(const char *data, const size_t len, pkt_t *pkt)
     /** CRC32 PAYLOAD VERIF**/
     uint32_t crc32;
     memcpy(&crc32, &data[10 + offset + pkt->length], 4);
-    crc32 = htohl(crc32); //INVERSE BITS
+    crc32 = ntohl(crc32); //INVERSE BITS
 
     //TODO
 
+    return PKT_OK;
     
 
 
 }
-return PKT_OK;
 
 pkt_status_code pkt_encode(const pkt_t* pkt, char *buf, size_t *len)
 {
@@ -202,7 +201,7 @@ pkt_status_code pkt_set_tr(pkt_t *pkt, const uint8_t tr)
 
 pkt_status_code pkt_set_window(pkt_t *pkt, const uint8_t window)
 {
-   if(windows > MAX_WINDOW_SIZE){
+   if(window > MAX_WINDOW_SIZE){
        return E_WINDOW;
    }
    pkt->window = window;
