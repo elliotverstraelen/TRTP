@@ -278,7 +278,20 @@ pkt_status_code pkt_set_payload(pkt_t *pkt,
                                 const char *data,
                                 const uint16_t length)
 {
-    /* Your code will be inserted here */
+    if(pkt == NULL){ return E_UNCONSISTENT;}
+    if(length>MAX_PAYLOAD_SIZE){
+        return E_NOMEM;
+    }
+    pkt_status_code length_status2 = pkt_set_length(pkt, length);
+    if(length_status2!=PKT_OK){
+        return length_status2;
+    }
+    if(pkt->payload != NULL){
+        free(pkt->payload);
+        return E_NOMEM;
+    }
+    memcpy(pkt->payload, data, length);
+    return PKT_OK;
 }
 
 ssize_t predict_header_length(const pkt_t *pkt)
