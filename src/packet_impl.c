@@ -3,14 +3,17 @@
 #include <stdlib.h>
 #include <arpa/inet.h>
 struct __attribute__((__packed__)) pkt {
+   //1st byte
    ptypes_t type : 2;
    uint8_t tr : 1;
    uint8_t window : 5;
+
+   //2nd & 3rd byte
    uint16_t length : 16;
    uint8_t seqnum : 8;
    uint32_t timestamp : 32;
    uint32_t crc1 : 32; //checksum for send
-   char *payload;
+   char *payload; //using pointer for performance issues
    uint32_t crc2 : 32;
 
 };
@@ -100,11 +103,11 @@ pkt_status_code pkt_decode(const char *data, const size_t len, pkt_t *pkt)
         return ts_status;
     }
 
-    /** CRC1 **/
+    /** CRC1 (ENCODE)**/
     uint32_t crc1;
     memcpy(&crc1, &data[6 + offset], 4);
     crc1 = ntohl(crc1); //Reverse order of the bits
-    //TODO
+    pkt_set_crc1(pkt, crc1);
 
     /** PAYLOAD **/
     int payload_length = pkt_get_length(pkt);
@@ -135,52 +138,82 @@ pkt_status_code pkt_decode(const char *data, const size_t len, pkt_t *pkt)
 
 pkt_status_code pkt_encode(const pkt_t* pkt, char *buf, size_t *len)
 {
+    int header_length = (int) predict_header_length(pkt);
+    int total_length = header_length + pkt_get_length(pkt) + 4;
+
+    if(pkt_get_tr(pkt) == 0 && pkt_get_length(pkt)!=0){
+        total_length += 4;
+    }
+    if(total_length >(int) *len){
+        return E_NOMEM;
+    }
+    if(pkt_get_type(pkt)!=PTYPE_DATA && pkt_get_tr(pkt)!=0){
+        return E_TR;
+    }
     //TODO
 }
 
 ptypes_t pkt_get_type  (const pkt_t* pkt)
 {
-    pkt->type;
+    if(pkt!=NULL){
+        pkt->type;
+    }
 }
 
 uint8_t  pkt_get_tr(const pkt_t* pkt)
 {
-    return pkt->tr;
+    if(pkt!=NULL){
+        return pkt->tr;
+    }
 }
 
 uint8_t  pkt_get_window(const pkt_t* pkt)
 {
-    return pkt->window;
+    if(pkt!=NULL){
+        return pkt->window;
+    }
 }
 
 uint8_t  pkt_get_seqnum(const pkt_t* pkt)
 {
-    pkt->seqnum;
+    if(pkt!=NULL){
+        pkt->seqnum;
+    }
 }
 
 uint16_t pkt_get_length(const pkt_t* pkt)
 {
-    return pkt->length;
+    if(pkt!=NULL){
+        return pkt->length;
+    }
 }
 
-uint32_t pkt_get_timestamp   (const pkt_t* pkt)
+uint32_t pkt_get_timestamp(const pkt_t* pkt)
 {
-    return pkt->timestamp;
+    if(pkt!=NULL){
+        return pkt->timestamp;
+    }
 }
 
 uint32_t pkt_get_crc1   (const pkt_t* pkt)
 {
-    return pkt->crc1;
+    if(pkt!=NULL){
+        return pkt->crc1;
+    }
 }
 
 uint32_t pkt_get_crc2   (const pkt_t* pkt)
 {
-    return pkt->crc2;
+    if(pkt!=NULL){
+        return pkt->crc2;
+    }
 }
 
 const char* pkt_get_payload(const pkt_t* pkt)
 {
-    pkt->payload;
+    if(pkt!=NULL){
+        pkt->payload;
+    }
 }
 
 
