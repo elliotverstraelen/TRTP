@@ -6,8 +6,11 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #include "log.h"
+#include <stdbool.h>
 
 #define BUFF_LEN 
 
@@ -26,6 +29,7 @@ int main(int argc, char **argv) {
     char *receiver_ip = NULL;
     char *receiver_port_err;
     uint16_t receiver_port;
+    bool binaryfile=0;
 
     while ((opt = getopt(argc, argv, "f:s:h")) != -1) {
         switch (opt) {
@@ -73,8 +77,21 @@ int main(int argc, char **argv) {
     receiver_addr.sin6_family = AF_INET6;
     receiver_addr.sin6_port = htons(receiver_port);
     inet_pton(AF_INET6, receiver_ip, &receiver_addr.sin6_addr);
-
     connect(sock, (const struct sockaddr *) &receiver_addr, sizeof(receiver_addr));
+
+    //OPENING THE FILEDESCRIPTOR
+    int fp;
+    if(filename){
+        if(binaryfile){
+            //TODO
+        }
+        else if((fp = open(filename,O_RDONLY) ==-1){
+            //TODO
+        }
+    }else{
+        fp = STDIN_FILENO;
+    }
+
     char msg[32] = "hello, world!";
     send(sock, msg, 32, 0);
     
