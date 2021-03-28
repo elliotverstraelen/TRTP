@@ -29,111 +29,84 @@ pkt_t* pkt_new()
 
 void pkt_del(pkt_t *pkt)
 {
-    if(pkt_get_payload(pkt)!=NULL){
-        free(pkt->payload);
+    if(pkt!=NULL){
+        if(pkt_get_payload(pkt)!=NULL){
+            free(pkt->payload);
+            pkt->payload = NULL;
+        }
+        free(pkt);
+        pkt = NULL;
     }
-    free(pkt);
-    pkt = NULL;
-    
 }
 
 pkt_status_code pkt_decode(const char *data, const size_t len, pkt_t *pkt)
 {
-    if(len==0 || len<11){
-        return E_UNCONSISTENT;
-    }
-    if(len<7){
-        return E_NOHEADER;
-    }
+    memcpy(pkt, data, sizeof(uint8_t));
+    //Window, tr and type
+    if((pkt_get_type(pkt) != PTYPE_DATA)&&(pkt_get_type(pkt) != PTYPE_ACK)&&(pkt_get_type(pkt) != PTYPE_NACK)){
+		return E_TYPE;
+	}
 
-    /** FIRST BYTES **/
-    uint8_t firstByte;
-    memcpy(&firstByte, data, 1);
+    // seqnum
+	uint8_t seqnum;
+	memcpy(&seqnum, data+1,sizeof(uint8_t));
+	pkt_set_seqnum(pkt, seqnum);
 
-    /** TYPE **/
-    ptypes_t type = firstByte >> 6; //right shift
-    if(type!=1 && type!=2 && type!=3){
-        return E_TYPE;
-    }
+	// length
+	uint16_t length;
+	memcpy(&length, data+2,sizeof(uint16_t));
+	length = ntohs(length);
+	pkt_set_length(pkt, length);
+
+    if((length != len-4*sizeof(uint32_t))&&(length != len-3*sizeof(uint32_t))){
+		return E_LENGTH;
+	}
+
+	if((pkt->tr == 1)&&(length!=0)){
+		return E_TR;
+	}
+	// timestamp
+	uint32_t timestamp;
+	memcpy(&timestamp, data+4,sizeof(uint32_t));
+	pkt_set_timestamp(pkt, timestamp);
+
+	// crc1
+	uint32_t crc1;
+	memcpy(&crc1, data+8, sizeof(uint32_t));
+    crc1 = ntohl(crc1);
+	pkt_set_crc1(pkt, crc1);
+
+	// verif crc1
+	uint32_t testCrc1 = 0;
+	char dataNonTr[8];
+	memcpy(dataNonTr, data, sizeof(uint64_t));
+	dataNonTr[0] = dataNonTr[0] & 0b11011111;
+	testCrc1 = crc32(testCrc1, (Bytef *)(&dataNonTr), sizeof(uint64_t));
+    if(testCrc1 != crc1){
+		return E_CRC;
+	}
+	// payload
+	pkt_set_payload(pkt, data+12, length);
+
+    if(length*sizeof(char) == len-4*sizeof(uint32_t)){
+		// crc2
+		uint32_t crc2;
+		memcpy(&crc2, data+12+length, sizeof(uint32_t));
+        crc2 = ntohl(crc2);
+		pkt_set_crc2(pkt, crc2);
+
+		// verif crc2
+		uint32_t testCrc2 = 0;
+		testCrc2 = crc32(testCrc2, (Bytef *)(data +12), length);
+
+		if(testCrc2 != crc2){
+			return E_CRC;
+		}
+	}
     else{
-        pkt_set_type(pkt, type);
+        pkt_set_crc2(pkt, 0);
     }
-
-    /** TR **/
-    uint8_t tr = firstByte & 0b00111111;
-    tr = tr >> 5;
-    pkt_status_code tr_status = pkt_set_tr(pkt, tr);
-    if(tr_status != PKT_OK){
-        return tr_status;
-    }
-    /** WINDOW **/
-
-    pkt_status_code window_status = pkt_set_window(pkt, firstByte & 0b00011111);
-    if(window_status != PKT_OK){
-        return window_status;
-    }
-
-    /** LENGTH **/
-    if(pkt_get_type(pkt) == PTYPE_DATA){
-        uint16_t length;
-        memcpy(&length, &data[1], 2);
-        length = htons(length);
-        pkt_status_code length_status = pkt_set_length(pkt, length);
-        if(length_status != PKT_OK){
-            return length_status;
-        }
-    }
-
-    /** SEQNUM **/
-
-    int offset = 0; //THIS IS USED TO GET THE LOCATION OF THE BITS IN THE PACKET STRUCTURE
-
-    uint8_t seq;
-    memcpy(&seq, &data[1 + offset], 1);
-    pkt_status_code seqnum_status = pkt_set_seqnum(pkt, seq);
-    if(seqnum_status != PKT_OK){
-        return seqnum_status;
-    }
-    
-    /** TIMESTAMP **/
-    uint32_t ts;
-    memcpy(&ts, &data[2 + offset], 4);
-    pkt_status_code ts_status = pkt_set_timestamp(pkt, ts);
-    if(ts_status != PKT_OK){
-        return ts_status;
-    }
-
-    /** CRC1 (ENCODE)**/
-    uint32_t crc1;
-    memcpy(&crc1, &data[6 + offset], 4);
-    crc1 = ntohl(crc1); //Reverse order of the bits
-    pkt_set_crc1(pkt, crc1);
-
-    /** PAYLOAD **/
-    int payload_length = pkt_get_length(pkt);
-    char *payload = (char *) malloc(sizeof(char)*payload_length);
-    memcpy(payload, &data[10 + offset], payload_length);
-    pkt_status_code payload_status = pkt_set_payload(pkt, payload, payload_length);
-    free(payload);
-    if(payload_status != PKT_OK){
-        return payload_status;
-    }
-
-    /** CRC32 HEADER VERIF **/
-    //uint32_t crc1 = crc32()
-    //TODO
-
-    /** CRC32 PAYLOAD VERIF**/
-    uint32_t crc32;
-    memcpy(&crc32, &data[10 + offset + pkt->length], 4);
-    crc32 = ntohl(crc32); //INVERSE BITS
-
-    //TODO
-
     return PKT_OK;
-    
-
-
 }
 
 pkt_status_code pkt_encode(const pkt_t* pkt, char *buf, size_t *len)
