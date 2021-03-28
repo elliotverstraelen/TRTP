@@ -8,6 +8,8 @@
 #include <arpa/inet.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <inttypes.h>
+#include <errno.h>
 
 #include "log.h"
 #include <stdbool.h>
@@ -38,6 +40,30 @@ int main(int argc, char **argv) {
     uint8_t lastackseqnum = -1; //Seqnum of the last ack received
 
     //Let's store the already encoded packets in a char *
+    struct dataqueue {
+        char *bufpkt;
+	    uint8_t seqnum;
+	    uint16_t len;
+	    struct timespec time;
+	    struct dataqueue *next;
+    };
+
+    //Start of the queue with pkts that the receiver has not received yet
+    struct dataqueue *startofqueue = NULL;
+
+    //Next pkt to send
+    struct dataqueue *firsttosend = NULL;
+
+    //End of the queue with pkts to send
+    struct dataqueue *lasttosend = NULL;
+
+    //Pkts not sent yet (for the 1st time)
+    int pkt_to_send = 0;
+
+    //Pkts not received by the receiver yet
+    int pkt_waiting = 0;
+
+        
 
     while ((opt = getopt(argc, argv, "f:s:h")) != -1) {
         switch (opt) {
@@ -78,11 +104,34 @@ int main(int argc, char **argv) {
     // Now let's code!
 
 
-    //Utility functions
+
+    int remove_pkt(uint8_T seqnum){
+        //TODO
+    }
 
     //get the number of the next ptype_ack packet
     int succ(int seqnum){
         return (seqnum +1) % 256;
+    }
+    //checks if the seqnum is in the window
+    int is_in_window(int seqnum){
+        //TODO
+    }
+
+    //SENDS firstosend PACKET in the Queue if it's seqnum is in the window
+    int send_pkt(const int sfd){
+        //TODO
+    }
+    int add_pkt_to_queue( char* buf, int len){
+        //TODO
+    }
+    //Send the disconnection request to receiver
+    int disconnect(int sfd){
+        //TODO
+    }
+    //SEND data from input
+    int send_data(const int sfd, const int fd){
+        //TODO
     }
 
 
