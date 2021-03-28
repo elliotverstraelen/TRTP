@@ -150,7 +150,48 @@ pkt_status_code pkt_encode(const pkt_t* pkt, char *buf, size_t *len)
     if(pkt_get_type(pkt)!=PTYPE_DATA && pkt_get_tr(pkt)!=0){
         return E_TR;
     }
-    //TODO
+    //window, tr and type
+    memcpy(buf, pkt, sizeof(uint8_t));
+    *len = sizeof(uint8_t);
+    //seqnum
+    uint8_t seqnum = pkt_get_seqnum(pkt);
+    memcpy(buf+1, &seqnum, sizeof(uint8_t));
+    *len += sizeof(uint8_t);
+    //length
+    uint16_t length = pkt_get_length(pkt);
+    uint16_t nlength = htons(length);
+    memcpy(buf+2, &nlength, sizeof(uint16_t));
+    *len += sizeof(uint16_t);
+	// timestamp
+	uint32_t timestamp = pkt_get_timestamp(pkt);
+	memcpy(buf+4, &timestamp,sizeof(uint32_t));
+	*len += sizeof(uint32_t);
+    // verif crc1
+	uint32_t testCrc1 = 0;
+	char dataNonTr[8];
+	memcpy(dataNonTr, buf, sizeof(uint64_t));
+	dataNonTr[0] = dataNonTr[0] & 0b11011111;
+	testCrc1 = crc32(testCrc1, (Bytef *)(&dataNonTr), sizeof(uint64_t));
+    // crc1
+    uint32_t crc1 = htonl(testCrc1);
+	memcpy(buf+8, &crc1,sizeof(uint32_t));
+	*len += sizeof(uint32_t);
+    // payload
+	memcpy(buf+12, pkt_get_payload(pkt), length);
+	*len += length;
+    // crc2
+    if(pkt_get_payload(pkt)!=0){
+        // verif crc2
+		uint32_t testCrc2 = 0;
+		testCrc2 = crc32(testCrc2, (Bytef *)(buf +12), length);
+
+        uint32_t crc2 = testCrc2;
+		crc2 = htonl(crc2);
+
+		memcpy(buf+12+length, &crc2, sizeof(uint32_t));
+        *len += sizeof(uint32_t);
+	}
+    return PKT_OK;
 }
 
 ptypes_t pkt_get_type  (const pkt_t* pkt)
@@ -291,7 +332,63 @@ pkt_status_code pkt_set_payload(pkt_t *pkt,
         return E_NOMEM;
     }
     memcpy(pkt->payload, data, length);
-    return PKT_OK;
+    return 
+    PKT_OK;
+}
+
+//CREATE A PACKET WITH SPECIFICATIONS FOR FIELDS
+char *pkt_create(const uint8_t type, const uint8_t window, const uint8_t seqnum, const uint32_t timestamp){
+    pkt_t* newpkt = pkt_new();
+	if(newpkt==NULL){
+		perror("error new pkt");
+		return NULL;
+	}
+	pkt_set_type(newpkt, type);
+	pkt_set_tr(newpkt, 0);
+	pkt_set_window(newpkt, window);
+	pkt_set_seqnum(newpkt, seqnum);
+	pkt_set_length(newpkt, 0);
+	pkt_set_timestamp(newpkt, timestamp);
+
+    char *buf = malloc(12 * sizeof(char));
+
+    memcpy(buf, newpkt, sizeof(uint8_t));
+
+	memcpy(buf+1, &seqnum,sizeof(uint8_t));
+
+	uint16_t length = 0b0000000000000000;
+	uint16_t nlength = htons(length);
+	memcpy(buf+2, &nlength,sizeof(uint16_t));
+
+	memcpy(buf+4, &timestamp,sizeof(uint32_t));
+
+	uint32_t testCrc1 = 0;
+	char dataNonTr[8];
+	memcpy(dataNonTr, buf, sizeof(uint64_t));
+	dataNonTr[0] = dataNonTr[0] & 0b11011111;
+	testCrc1 = crc32(testCrc1, (Bytef *)(&dataNonTr), sizeof(uint64_t));
+
+	uint32_t crc1 = htonl(testCrc1);
+	memcpy(buf+8, &crc1,sizeof(uint32_t));
+	
+	pkt_del(newpkt);
+	return buf;
+}
+
+pkt_t* pkt_create_sender(const uint8_t window, const uint8_t seqnum, const uint16_t len, const uint32_t timestamp, const char *payload){
+	pkt_t* newpkt = pkt_new();
+	if(newpkt==NULL){
+		perror("error for creation of new pkt");
+		return NULL;
+	}
+	pkt_set_type(newpkt, PTYPE_DATA);
+	pkt_set_tr(newpkt, 0);
+	pkt_set_window(newpkt, window);
+	pkt_set_seqnum(newpkt, seqnum);
+	pkt_set_length(newpkt, len);
+	pkt_set_timestamp(newpkt, timestamp);
+	pkt_set_payload(newpkt, payload, len);
+	return newpkt;
 }
 
 ssize_t predict_header_length(const pkt_t *pkt)

@@ -13,6 +13,7 @@
 #include <stdbool.h>
 
 #define BUFF_LEN 
+#define MAX_SEQNUM 256
 
 int print_usage(char *prog_name) {
     ERROR("Usage:\n\t%s [-f filename] [-s stats_filename] receiver_ip receiver_port", prog_name);
@@ -30,6 +31,13 @@ int main(int argc, char **argv) {
     char *receiver_port_err;
     uint16_t receiver_port;
     bool binaryfile=0;
+
+    uint8_t lastseqnum = 0; //seqnum of last packet read
+    uint8_t window = 1; //size of window
+    uint8_t firstseqnumwindow = 0;
+    uint8_t lastackseqnum = -1; //Seqnum of the last ack received
+
+    //Let's store the already encoded packets in a char *
 
     while ((opt = getopt(argc, argv, "f:s:h")) != -1) {
         switch (opt) {
@@ -69,6 +77,15 @@ int main(int argc, char **argv) {
     ERROR("This is not an error, %s", "now let's code!");
     // Now let's code!
 
+
+    //Utility functions
+
+    //get the number of the next ptype_ack packet
+    int succ(int seqnum){
+        return (seqnum +1) % 256;
+    }
+
+
     int sock = socket(AF_INET6, SOCK_DGRAM, 0);
 
     // REGISTER 
@@ -83,17 +100,29 @@ int main(int argc, char **argv) {
     int fp;
     if(filename){
         if(binaryfile){
-            //TODO
+            if((fp = fileno(fopen(filename, "rb"))) == -1){
+                fprintf(stderr, "Open of file failed!\n");
+                close(fp);
+            }
         }
-        else if((fp = open(filename,O_RDONLY) ==-1){
-            //TODO
+        else if((fp = open(filename,O_RDONLY)) ==-1){
+            fprintf(stderr, "Open of file failed!\n");
         }
-    }else{
+    }
+    else{
         fp = STDIN_FILENO;
     }
 
-    char msg[32] = "hello, world!";
-    send(sock, msg, 32, 0);
+    int finished = 0;
+    int eof = 0;
+    int win = 32;
+
+
+
+    //send firsttosend pkt in the queue
+    int send_pkt(const int sfd){
+        //TODO
+    }
     
     return EXIT_SUCCESS;
 }
